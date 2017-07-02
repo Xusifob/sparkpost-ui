@@ -395,7 +395,7 @@ class SparkPost
             )
         ));
 
-        return $response->getBody()->getContents();
+        return json_decode($response->getBody()->getContents(),true);
 
     }
 

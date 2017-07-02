@@ -5,10 +5,17 @@
  */
 
 
-include  __DIR__ . 'header.php';
+include  __DIR__ . '/header.php';
 
 if(isset($_POST['email'])){
-    $sparkpist_result = $sparkpost->unsubscribe($_POST['email']);
+    try{
+        $sparkpist_result = $sparkpost->unsubscribe($_POST['email']);
+
+        $success = true;
+    }catch (\GuzzleHttp\Exception\ClientException $e)
+    {
+        $success = false;
+    }
 
 }
 
@@ -346,10 +353,7 @@ if(isset($_POST['email'])){
 
 <body>
 <div class="wrapper rounded6" id="templateContainer">
-    <!--<h1>TRANSACTILE</h1>-->
     <div class="imgholder thumb-wrapper thumb-lg" style="border:none;text-align: center;">
-
-        <img class="company_logo w-full" src="..." style="width:120px;"/>
     </div>
 
 
