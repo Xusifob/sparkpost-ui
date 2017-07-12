@@ -282,6 +282,11 @@ class SparkPost
     }
 
 
+    /**
+     * @param $recipients
+     * @param $metrics
+     * @return mixed
+     */
     public function sortMetrics($recipients,$metrics)
     {
         foreach($metrics as $key =>  $metric){
@@ -488,12 +493,110 @@ class SparkPost
     }
 
 
+    /**
+     *
+     * @deprecated
+     *
+     * @param array $data
+     * @param string $name
+     */
+    public function createSparkpostList($data = array(),$name = '')
+    {
+        $this->createListFile($data,$name);
+    }
 
 
-    public function createSparkpostList()
+    /**
+     *
+     * Update the link
+     *
+     * @param $template_id
+     * @param $campaign_id
+     * @param $campaign_source
+     */
+    public function UpdateTemplateLinks($template_id,$campaign_id,$campaign_source)
     {
 
-        $data = Utils::csv_to_array($_FILES['file']['tmp_name']);
+        $r = $this->getTemplateHTML($template_id);
+        $html = $this->updateHTML($r['results']['content']['html'],$campaign_id,$campaign_source);
+        $this->updateTemplate($template_id,$html,$r);
+
+    }
+
+
+
+
+    /**
+     *
+     * Return the list of recipient
+     *
+     * @return mixed
+     */
+    public function getRecipientLists()
+    {
+        return  json_decode($this->client->get('recipient-lists')->getBody()->getContents(),true);
+    }
+
+
+    /**
+     *
+     * Return a list of email address from a list
+     *
+     * @param $list_id
+     * @return mixed
+     */
+    public function getEmailsFromList($list_id)
+    {
+        $recipients = $this->getRecipientList($list_id)['results']['recipients'];
+
+        $data = array();
+
+        foreach($recipients as $recipient){
+            $data[] = $recipient['address']['email'];
+        }
+
+
+        return $data;
+    }
+
+
+
+
+    /**
+     *
+     * Return a specific recipient list and all it's recipients
+     *
+     * @param $list_id
+     * @return mixed
+     */
+    public function getRecipientList($list_id)
+    {
+        return  json_decode($this->client->get('recipient-lists/' . $list_id,array(
+            'query' => array(
+                'show_recipients' => true,
+
+            ),
+        ))->getBody()->getContents(),true);
+    }
+
+
+
+
+    /**
+     *
+     * @param array $data
+     * @param string $name
+     */
+    public function createListFile($data =  array(),$name = '')
+    {
+
+        if(empty($data) && isset($_FILES['file'])){
+            $data = Utils::csv_to_array($_FILES['file']['tmp_name']);
+        }
+
+        if(!$name){
+            $name = $_FILES['file']['name'];
+        }
 
         $q = array();
 
@@ -562,41 +665,80 @@ class SparkPost
 
 
         $response = new CSVResponse($q);
-        $response->setFilename('export-' . $_FILES['file']['name']);
+        $response->setFilename('export-' . $name);
         $response->send();
         die();
-    }
 
-
-    /**
-     *
-     * Update the link
-     *
-     * @param $template_id
-     * @param $campaign_id
-     * @param $campaign_source
-     */
-    public function UpdateTemplateLinks($template_id,$campaign_id,$campaign_source)
-    {
-
-        $r = $this->getTemplateHTML($template_id);
-        $html = $this->updateHTML($r['results']['content']['html'],$campaign_id,$campaign_source);
-        $this->updateTemplate($template_id,$html,$r);
 
     }
-
 
 
 
     /**
      *
-     * Return the list of recipient
+     * Create a recipient list
      *
-     * @return mixed
+     *
+     * @param $list_name
+     * @param $recipients
+     * @return string
      */
-    public function getRecipientList()
+    public function createRecipientList($list_name,$recipients)
     {
-        return  json_decode($this->client->get('recipient-lists')->getBody()->getContents(),true);
+        $_recipients = array();
+
+        foreach($recipients as $recipient)
+        {
+
+            // Remove unsubscribe
+            $tags = Utils::extractFromRequest(array('Mots clés'),$recipient);
+
+
+            if(false !== strpos(strtolower($tags),'unsubscribe')){
+                continue;
+            }
+
+
+
+
+            $substitution_data = array();
+
+            foreach($recipient as $key => $value){
+                $key = strtolower(preg_replace('/ |-/','_',$key));
+
+                $substitution_data[$key] = $value;
+            }
+
+            $_recipients[] = array(
+                "address" => array(
+                    'email' =>Utils::extractFromRequest(array('email','Email','E-mail'),$recipient),
+                    'name' => Utils::extractFromRequest(array('first name','first_name'),$recipient) . ' ' . Utils::extractFromRequest(array('last_name','Last name'),$recipient),
+                ),
+                'tags' => $tags ? explode(',',$tags) : array(),
+                "substitution_data" => $substitution_data,
+            );
+        }
+
+
+
+
+        $response = $this->client->post('recipient-lists',array(
+            'json' => array(
+                'name' => $list_name,
+                'id' => $list_name,
+                'recipients' => $_recipients,
+            ),
+            'query' => array(
+                'num_rcpt_errors' => 5,
+
+            ),
+        ));
+
+
+        return $response->getBody()->getContents();
+
+
     }
+
 
 }

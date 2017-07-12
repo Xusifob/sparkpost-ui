@@ -5,7 +5,7 @@ include __DIR__ . '/header.php';
 
 $campaigns = $sparkpost->getCampaigns();
 
-$recipient_list = $sparkpost->getRecipientList();
+$recipient_list = $sparkpost->getRecipientLists();
 
 
 $recipients = array();

@@ -44,7 +44,7 @@ if(isset($_POST['campaign_id']) && !empty($_POST['campaign_id'])) {
 
 
 
-$recipient_list =$sparkpost->getRecipientList();
+$recipient_list =$sparkpost->getRecipientLists();
 
 $template_list = $sparkpost->getTemplates();
 
